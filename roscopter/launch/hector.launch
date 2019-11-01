@@ -1,0 +1,9 @@
+<launch>
+
+<node pkg="roscopter" name="roscopter_controller_node" type="controller" output="screen">
+
+<rosparam command="load" file="$(find roscopter)/params/hector.yaml" />
+
+</node>
+
+</launch>

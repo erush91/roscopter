@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   nav_msgs
   sensor_msgs
+  marble_uav_state_machine_msgs
   rosbag
   roslib
 )

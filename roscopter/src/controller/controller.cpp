@@ -35,11 +35,14 @@ Controller::Controller() :
   _server.setCallback(_func);
 
   // Set up Publishers and Subscriber
-  state_sub_ = nh_.subscribe("estimate", 1, &Controller::stateCallback, this);
+  // state_sub_ = nh_.subscribe("estimate", 1, &Controller::stateCallback, this);
+  state_sub_ = nh_.subscribe("/ground_truth/state", 1, &Controller::stateCallback, this);
   is_flying_sub_ =
       nh_.subscribe("is_flying", 1, &Controller::isFlyingCallback, this);
   cmd_sub_ =
       nh_.subscribe("high_level_command", 1, &Controller::cmdCallback, this);
+  quad_cmd_sub_ =
+      nh_.subscribe("state_machine_command", 1, &Controller::quadCmdCallback, this);
   status_sub_ = nh_.subscribe("status", 1, &Controller::statusCallback, this);
 
   command_pub_ = nh_.advertise<rosflight_msgs::Command>("command", 1);
@@ -143,6 +146,18 @@ void Controller::cmdCallback(const rosflight_msgs::CommandConstPtr &msg)
     received_cmd_ = true;
 }
 
+void Controller::quadCmdCallback(const marble_uav_state_machine_msgs::ControlCommandPtr &msg)
+{
+  xc_.pn = msg->position.x;
+  xc_.pe = msg->position.y;
+  xc_.pd = msg->position.z;
+  xc_.psi = msg->yaw;
+  control_mode_ = rosflight_msgs::Command::MODE_XPOS_YPOS_YAW_ALTITUDE;
+  
+  if (!received_cmd_)
+    received_cmd_ = true;
+}
+
 void Controller::reconfigure_callback(roscopter::ControllerConfig& config,
                                       uint32_t level)
 {
@@ -170,6 +185,11 @@ void Controller::reconfigure_callback(roscopter::ControllerConfig& config,
   max_.n_dot = config.max_n_dot;
   PID_n_.setGains(P, I, D, tau, max_.n_dot, -max_.n_dot);
 
+  ROS_INFO("config.north_P %f:", config.north_P);
+  ROS_INFO("config.north_I %f:", config.north_I);
+  ROS_INFO("config.north_D %f:", config.north_D);
+  ROS_INFO("config.max_n_dot %f:", config.max_n_dot);
+
   P = config.east_P;
   I = config.east_I;
   D = config.east_D;
@@ -196,8 +216,9 @@ void Controller::reconfigure_callback(roscopter::ControllerConfig& config,
   max_.e_dot = config.max_e_dot;
   max_.d_dot = config.max_d_dot;
 
-  throttle_eq_ = config.equilibrium_throttle;
+  throttle_eq_ = config.equilibrium_throttle;  
 
+  ROS_INFO("throttle_eq_: %f", throttle_eq_);
   ROS_INFO("new gains");
 
   resetIntegrators();
@@ -216,10 +237,18 @@ void Controller::computeControl(double dt)
 
   if(mode_flag == rosflight_msgs::Command::MODE_XPOS_YPOS_YAW_ALTITUDE)
   {
+    
     // Figure out desired velocities (in inertial frame)
     // By running the position controllers
     double pndot_c = PID_n_.computePID(xc_.pn, xhat_.pn, dt);
     double pedot_c = PID_e_.computePID(xc_.pe, xhat_.pe, dt);
+
+
+    ROS_INFO_THROTTLE(1,"xc_.pn %f:", xc_.pn);
+    ROS_INFO_THROTTLE(1, "xhat_.pn %f", xhat_.pn);
+    ROS_INFO_THROTTLE(1, "dt: %f", dt);
+    ROS_INFO_THROTTLE(1, "pndot_c: %f", pndot_c);
+    ROS_INFO_THROTTLE(1, "pedot_c: %f", pedot_c);
 
     // Calculate desired yaw rate
     // First, determine the shortest direction to the commanded psi

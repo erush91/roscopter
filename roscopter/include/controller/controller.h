@@ -2,6 +2,7 @@
 #define CONTROLLER_H
 
 #include <ros/ros.h>
+#include <ros/console.h>
 #include <rosflight_msgs/Command.h>
 #include <rosflight_msgs/Status.h>
 #include <controller/simple_pid.h>
@@ -11,6 +12,7 @@
 #include <stdint.h>
 #include <dynamic_reconfigure/server.h>
 #include <roscopter/ControllerConfig.h>
+#include <marble_uav_state_machine_msgs/ControlCommand.h>
 
 namespace controller
 {
@@ -85,6 +87,7 @@ private:
   ros::Subscriber state_sub_;
   ros::Subscriber is_flying_sub_;
   ros::Subscriber cmd_sub_;
+  ros::Subscriber quad_cmd_sub_;
   ros::Subscriber status_sub_;
 
   ros::Publisher command_pub_;
@@ -127,6 +130,7 @@ private:
   void stateCallback(const nav_msgs::OdometryConstPtr &msg);
   void isFlyingCallback(const std_msgs::BoolConstPtr &msg);
   void cmdCallback(const rosflight_msgs::CommandConstPtr &msg);
+  void quadCmdCallback(const marble_uav_state_machine_msgs::ControlCommandPtr &msg);
   void statusCallback(const rosflight_msgs::StatusConstPtr &msg);
 
   void computeControl(double dt);
